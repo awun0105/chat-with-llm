@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A focused multi-model chat workspace." />
+    <title>Chat with LLM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Chat sessions">
+        <div class="brand-row">
+          <a class="brand" href="/" aria-label="Chat with LLM home">
+            <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span>ChatWithLLM</span>
+          </a>
+          <button class="icon-button mobile-only" id="closeSidebar" aria-label="Close sidebar">
+            <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <button class="new-chat-button" id="newChatButton">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <span>New conversation</span>
+          <kbd>⌘ K</kbd>
+        </button>
+
+        <div class="sidebar-label">Recent</div>
+        <nav class="session-list" id="sessionList" aria-live="polite"></nav>
+
+        <div class="sidebar-footer">
+          <div class="provider-status" id="providerStatus">
+            <span class="status-dot"></span><span>Checking providers…</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+      <main class="workspace">
+        <header class="topbar">
+          <button class="icon-button mobile-only" id="openSidebar" aria-label="Open sidebar">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
+          <div class="conversation-heading">
+            <span class="eyebrow">Conversation</span>
+            <h1 id="conversationTitle">New conversation</h1>
+          </div>
+        </header>
+
+        <section class="chat-scroll" id="chatScroll" aria-live="polite">
+          <div class="chat-column" id="chatColumn">
+            <div class="welcome-state" id="welcomeState">
+              <div class="welcome-orbit" aria-hidden="true"><span>✦</span></div>
+              <p class="eyebrow">A clearer place to think</p>
+              <h2>What can we explore?</h2>
+              <p>Choose a model, shape its instructions, and start a focused conversation.</p>
+              <div class="starter-grid">
+                <button class="starter" data-prompt="Explain a difficult concept to me using a simple analogy.">
+                  <span>Learn</span><strong>Explain a difficult concept</strong>
+                </button>
+                <button class="starter" data-prompt="Help me turn a rough idea into a clear step-by-step plan.">
+                  <span>Plan</span><strong>Structure a rough idea</strong>
+                </button>
+                <button class="starter" data-prompt="Review this idea critically and identify its biggest risks: ">
+                  <span>Review</span><strong>Challenge my thinking</strong>
+                </button>
+              </div>
+            </div>
+            <div class="message-list" id="messageList"></div>
+          </div>
+        </section>
+
+        <footer class="composer-area">
+          <form class="composer" id="composer">
+            <textarea id="messageInput" rows="1" maxlength="32000" placeholder="Message the model…" aria-label="Chat message"></textarea>
+            <div class="composer-bottom">
+              <div class="composer-tools">
+                <div class="model-control">
+                  <button class="model-trigger" id="modelTrigger" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="Switch model">
+                    <span class="model-sigil" id="modelSigil">M</span>
+                    <span class="model-trigger-copy">
+                      <strong id="activeModelLabel">Loading…</strong>
+                      <small id="activeModelMeta">Model</small>
+                    </span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4" /></svg>
+                  </button>
+                  <div class="model-menu" id="modelMenu" role="menu" hidden></div>
+                </div>
+                <button class="composer-tool" id="openPromptButton" type="button" title="System instructions">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7" /></svg>
+                  <span>Instructions</span>
+                </button>
+                <div class="latency-hint" id="latencyHint"><span class="pulse-dot"></span><span>Estimated response —</span></div>
+              </div>
+              <button class="send-button" id="sendButton" type="submit" aria-label="Send message" disabled>
+                <svg viewBox="0 0 24 24"><path d="m5 12 14-7-5 14-2-6-7-1Z" /></svg>
+              </button>
+            </div>
+          </form>
+          <p class="composer-note">Models can make mistakes. Verify important information.</p>
+        </footer>
+      </main>
+    </div>
+
+    <dialog class="prompt-dialog" id="promptDialog">
+      <form method="dialog" class="dialog-card" id="promptForm">
+        <div class="dialog-header">
+          <div><span class="eyebrow">Session behavior</span><h2>System instructions</h2></div>
+          <button class="icon-button" value="cancel" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+        </div>
+        <p class="dialog-description">Set the role, tone, and boundaries for this conversation. Changes apply to the next message.</p>
+        <label for="systemPrompt">Custom system prompt</label>
+        <textarea id="systemPrompt" maxlength="8000" rows="10"></textarea>
+        <div class="prompt-meta">
+          <button type="button" class="text-button" id="resetPrompt">Use default</button><span id="promptCount">0 / 8,000</span>
+        </div>
+        <div class="dialog-actions">
+          <button class="secondary-button" value="cancel">Cancel</button>
+          <button class="primary-button" id="savePrompt" value="default">Save instructions</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast-region" id="toastRegion" aria-live="assertive"></div>
+    <template id="messageTemplate">
+      <article class="message">
+        <div class="message-avatar"></div>
+        <div class="message-body">
+          <div class="message-author"></div>
+          <div class="message-content markdown"></div>
+          <div class="message-actions">
+            <button class="copy-button" type="button" aria-label="Copy message">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
+              <span>Copy</span>
+            </button>
+            <button class="retry-button" type="button" aria-label="Retry response" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.7-5.4L20 9" /><path d="M20 4v5h-5" /><path d="M19.5 12a7.5 7.5 0 0 1-12.7 5.4L4 15" /><path d="M4 20v-5h5" /></svg>
+              <span>Retry</span>
+            </button>
+          </div>
+          <div class="message-metrics"></div>
+        </div>
+      </article>
+    </template>
+    <script src="/static/vendor/marked.min.js"></script>
+    <script src="/static/vendor/purify.min.js"></script>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

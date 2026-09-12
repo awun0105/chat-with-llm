@@ -1,0 +1,74 @@
+# Model catalog for OpenAI-compatible Chat Completions providers.
+# Environment expressions support ${NAME} and ${NAME:-fallback}.
+
+default_model = "${DEFAULT_CHAT_MODEL:-small-model-1}"
+
+[providers.nvidia_nim]
+label = "NVIDIA NIM"
+base_url = "${BASE_URL:-https://integrate.api.nvidia.com/v1}"
+api_key_env = "NVIDIA_API_KEY"
+token_parameter = "max_tokens"
+system_role = "system"
+timeout_seconds = 90
+
+# Providers can exist without models. Uncomment/add a [[models]] entry that
+# references one of these provider IDs when you want it to appear in the UI.
+[providers.openai]
+label = "OpenAI"
+base_url = "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+api_key_env = "OPENAI_API_KEY"
+token_parameter = "max_completion_tokens"
+system_role = "developer"
+timeout_seconds = 90
+
+[providers.deepseek]
+label = "DeepSeek"
+base_url = "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+api_key_env = "DEEPSEEK_API_KEY"
+token_parameter = "max_tokens"
+system_role = "system"
+timeout_seconds = 90
+
+[[models]]
+id = "large-model-1"
+provider = "nvidia_nim"
+model = "${BIG_MODEL1:-nvidia/nemotron-3-ultra-550b-a55b}"
+label = "Nemotron 3 Ultra 550B"
+company = "NVIDIA"
+tier = "Large"
+estimate_low = 8
+estimate_high = 24
+color = "#111827"
+
+[[models]]
+id = "large-model-2"
+provider = "nvidia_nim"
+model = "${BIG_MODEL2:-openai/gpt-oss-20b}"
+label = "GPT-OSS 20B"
+company = "OpenAI"
+tier = "Large"
+estimate_low = 6
+estimate_high = 20
+color = "#3f3f46"
+
+[[models]]
+id = "small-model-1"
+provider = "nvidia_nim"
+model = "${LAB_MINI_MODEL1:-nvidia/nemotron-3-super-120b-a12b}"
+label = "Nemotron 3 Super 120B"
+company = "NVIDIA"
+tier = "Small"
+estimate_low = 3
+estimate_high = 12
+color = "#4f46e5"
+
+[[models]]
+id = "small-model-2"
+provider = "nvidia_nim"
+model = "${LAB_MINI_MODEL2:-deepseek-ai/deepseek-v4-flash-0731}"
+label = "DeepSeek V4 Flash"
+company = "DeepSeek"
+tier = "Small"
+estimate_low = 2
+estimate_high = 9
+color = "#6366f1"
