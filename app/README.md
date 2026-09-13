@@ -144,6 +144,20 @@ INFO:     Application startup complete.
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
+### Optional: React + Tailwind UI (comparison)
+
+A Vite + React + Tailwind rewrite of the same UI lives in `web/`. The vanilla
+page at `/` stays. Details: `web/README.md`.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173) while Uvicorn is still on
+port 8000. Both UIs share the same sessions and models.
+
 ## 6. Confirm it worked
 
 The app is up when all of these are true:

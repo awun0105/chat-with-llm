@@ -13,3 +13,7 @@ solution.zip
 app/.env
 app/data/*.db
 app/data/*.db-*
+
+# React comparison UI
+web/node_modules/
+web/dist/

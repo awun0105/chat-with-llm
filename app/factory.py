@@ -102,14 +102,10 @@ def create_app(
 
     if include_ui:
         application.mount(
-            "/static",
-            StaticFiles(directory=backend.settings.static_dir),
-            name="static",
+            "/",
+            StaticFiles(directory=backend.settings.static_dir, html=True),
+            name="ui",
         )
-
-        @application.get("/", include_in_schema=False)
-        def index() -> FileResponse:
-            return FileResponse(backend.settings.static_dir / "index.html")
 
     return application
 
@@ -139,8 +135,8 @@ def attach_chat(
     host.include_router(create_chat_router(f"{prefix}/api" if prefix else "/api"))
     if include_ui:
         host.mount(
-            f"{prefix}/static" if prefix else "/static",
-            StaticFiles(directory=backend.settings.static_dir),
-            name="chat-static",
+            prefix if prefix else "/",
+            StaticFiles(directory=backend.settings.static_dir, html=True),
+            name="chat-ui",
         )
     return backend

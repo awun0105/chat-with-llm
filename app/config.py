@@ -44,7 +44,7 @@ class Settings:
         return cls(
             project_dir=PROJECT_DIR,
             app_dir=APP_DIR,
-            static_dir=APP_DIR / "static",
+            static_dir=PROJECT_DIR / "web" / "dist",
             data_dir=data_dir,
             db_path=data_dir / "chat.db",
             models_config_path=configured_catalog,
