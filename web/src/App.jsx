@@ -399,6 +399,9 @@ export default function App() {
             document.body.style.pointerEvents = 'none'; // prevents iframe/selection issues
             e.preventDefault();
           }}
+          onDoubleClick={() => {
+            setSidebarWidth(sidebarWidth === 0 ? 320 : 0);
+          }}
         />
         <header className="relative z-20 flex min-h-[72px] items-center gap-[18px] border-b border-line/85 bg-paper/87 px-8 backdrop-blur-[18px] max-[820px]:min-h-16 max-[820px]:gap-2.5 max-[820px]:px-4">
           <button
