@@ -19,7 +19,7 @@ export function Sidebar({
           open
             ? "max-[820px]:visible max-[820px]:pointer-events-auto max-[820px]:translate-x-0"
             : "max-[820px]:invisible max-[820px]:pointer-events-none max-[820px]:-translate-x-[102%]",
-          hiddenDesktop ? "hidden max-[820px]:flex" : "",
+          hiddenDesktop ? "opacity-0 !p-0 !border-none max-[820px]:opacity-100 max-[820px]:!px-[22px]" : "",
         ].join(" ")}
         aria-label="Chat sessions"
       >
