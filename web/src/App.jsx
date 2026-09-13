@@ -1,7 +1,7 @@
 /* size-[18px] size-[15px] size-[22px] */ 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Composer } from "./components/Composer.jsx";
-import { IconMenu } from "./components/Icons.jsx";
+import { IconSidebarOpen, IconPen } from "./components/Icons.jsx";
 import { ChatMessage, EventMessage } from "./components/Message.jsx";
 import { PromptDialog } from "./components/PromptDialog.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
@@ -37,32 +37,7 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(320);
-  const isDragging = useRef(false);
-
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!isDragging.current) return;
-      let newWidth = e.clientX;
-      if (newWidth < 120) newWidth = 0; // snap to hide
-      if (newWidth > 600) newWidth = 600; // max width
-      setSidebarWidth(newWidth);
-    };
-    const onUp = () => {
-      if (isDragging.current) {
-        isDragging.current = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        document.body.style.pointerEvents = '';
-      }
-    };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    return () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-    };
-  }, []);
+  const [sidebarDesktopOpen, setSidebarDesktopOpen] = useState(true);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
@@ -376,12 +351,15 @@ export default function App() {
 
   return (
     <div 
-    className="grid h-dvh min-h-0 overflow-hidden max-[820px]:block"
-    style={{ gridTemplateColumns: window.innerWidth > 820 ? `${sidebarWidth}px minmax(0,1fr)` : undefined }}
+    className={[
+      "grid h-dvh min-h-0 overflow-hidden max-[820px]:block transition-[grid-template-columns] duration-300 ease-in-out",
+      sidebarDesktopOpen ? "grid-cols-[260px_minmax(0,1fr)]" : "grid-cols-[0px_minmax(0,1fr)]"
+    ].join(" ")}
   >
       <Sidebar
         open={sidebarOpen}
-        hiddenDesktop={sidebarWidth === 0}
+        hiddenDesktop={!sidebarDesktopOpen}
+        onToggleDesktop={() => setSidebarDesktopOpen(!sidebarDesktopOpen)}
         sessions={sessions}
         currentId={current?.id}
         providerStatus={providerStatusFrom(models)}
@@ -390,34 +368,38 @@ export default function App() {
         onSelect={selectSession}
       />
       <main className="relative grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgb(101_88_211_/_6%),transparent_36%),var(--color-paper)] max-[820px]:h-dvh">
-        <div 
-          className="absolute top-0 bottom-0 left-0 z-50 w-2 -ml-1 cursor-col-resize hover:bg-accent/40 max-[820px]:hidden transition-colors"
-          onPointerDown={(e) => {
-            isDragging.current = true;
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-            document.body.style.pointerEvents = 'none'; // prevents iframe/selection issues
-            e.preventDefault();
-          }}
-          onDoubleClick={() => {
-            setSidebarWidth(sidebarWidth === 0 ? 320 : 0);
-          }}
-        />
+
         <header className="relative z-20 flex min-h-[72px] items-center gap-[18px] border-b border-line/85 bg-paper/87 px-8 backdrop-blur-[18px] max-[820px]:min-h-16 max-[820px]:gap-2.5 max-[820px]:px-4">
-          <button
-            type="button"
-            className="grid size-[38px] place-items-center rounded-[10px] bg-transparent hover:bg-panel transition-colors"
-            onClick={() => {
-              if (window.innerWidth <= 820) {
-                setSidebarOpen(true);
-              } else {
-                setSidebarWidth(sidebarWidth === 0 ? 320 : 0);
-              }
-            }}
-            aria-label="Toggle sidebar"
-          >
-            <IconMenu />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className={[
+                "grid size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 transition-colors",
+                sidebarDesktopOpen ? "max-[820px]:grid hidden" : "grid"
+              ].join(" ")}
+              onClick={() => {
+                if (window.innerWidth <= 820) {
+                  setSidebarOpen(true);
+                } else {
+                  setSidebarDesktopOpen(true);
+                }
+              }}
+              aria-label="Open sidebar"
+            >
+              <IconSidebarOpen />
+            </button>
+            <button
+              type="button"
+              className={[
+                "grid size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 transition-colors",
+                sidebarDesktopOpen ? "max-[820px]:grid hidden" : "grid"
+              ].join(" ")}
+              onClick={createSession}
+              aria-label="New chat"
+            >
+              <IconPen />
+            </button>
+          </div>
           <div className="mr-auto min-w-0">
             <span className="mb-1 block text-[0.72rem] font-bold uppercase tracking-[0.12em] text-muted">
               Conversation

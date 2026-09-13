@@ -78,3 +78,32 @@ export function IconRetry({ className = "size-[15px]" }) {
    size-[15px] size-4.5 size-[22px]
 */
 const twSafelist = "size-[15px] size-4.5 size-[22px]";
+
+export function IconSidebarClose({ className = "size-[18px]" }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" {...stroke}>
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+      <path d="M9 3v18"/>
+      <path d="m16 15-3-3 3-3"/>
+    </svg>
+  );
+}
+
+export function IconSidebarOpen({ className = "size-[18px]" }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" {...stroke}>
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+      <path d="M9 3v18"/>
+      <path d="m14 9 3 3-3 3"/>
+    </svg>
+  );
+}
+
+export function IconPen({ className = "size-[18px]" }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" {...stroke}>
+      <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/>
+    </svg>
+  );
+}
