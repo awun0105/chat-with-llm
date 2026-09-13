@@ -2,6 +2,7 @@ import { IconClose, IconPlus } from "./Icons.jsx";
 
 export function Sidebar({
   open,
+  hiddenDesktop,
   sessions,
   currentId,
   providerStatus,
@@ -18,6 +19,7 @@ export function Sidebar({
           open
             ? "max-[820px]:visible max-[820px]:pointer-events-auto max-[820px]:translate-x-0"
             : "max-[820px]:invisible max-[820px]:pointer-events-none max-[820px]:-translate-x-[102%]",
+          hiddenDesktop ? "hidden max-[820px]:flex" : "",
         ].join(" ")}
         aria-label="Chat sessions"
       >

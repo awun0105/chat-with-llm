@@ -381,6 +381,7 @@ export default function App() {
   >
       <Sidebar
         open={sidebarOpen}
+        hiddenDesktop={sidebarWidth === 0}
         sessions={sessions}
         currentId={current?.id}
         providerStatus={providerStatusFrom(models)}
