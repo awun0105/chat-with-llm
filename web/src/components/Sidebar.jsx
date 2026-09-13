@@ -57,12 +57,12 @@ export function Sidebar({
           </div>
           <button
             type="button"
-            className="flex min-h-[52px] w-full min-w-[200px] shrink-0 cursor-pointer items-center gap-3 rounded-[14px] border border-line-strong bg-white/70 px-3.5 text-[0.95rem] font-semibold transition duration-160 hover:-translate-y-px hover:border-[#c7c8c1] hover:bg-white mb-2"
+            className="flex w-full min-w-[200px] cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 text-[0.95rem] font-medium hover:bg-black/5 transition-colors mb-2"
             onClick={onNewChat}
           >
             <IconPen />
             <span className="whitespace-nowrap">New conversation</span>
-            <kbd className="ml-auto shrink-0 font-mono text-[0.72rem] font-normal text-soft">⌘ K</kbd>
+            <kbd className="ml-auto shrink-0 font-mono text-[0.72rem] font-normal text-muted">⌘ K</kbd>
           </button>
 
 
