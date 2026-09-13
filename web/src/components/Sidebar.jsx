@@ -14,16 +14,17 @@ export function Sidebar({
     <>
       <aside
         className={[
-          "relative z-30 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-line bg-panel px-[22px] pb-5 pt-7",
+          "relative z-30 flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-line bg-panel pb-5 pt-7",
           "max-[820px]:fixed max-[820px]:inset-y-0 max-[820px]:left-0 max-[820px]:h-dvh max-[820px]:w-[min(320px,88vw)] max-[820px]:shadow-[12px_0_40px_rgb(20_20_18_/_12%)] max-[820px]:transition-transform max-[820px]:duration-[180ms]",
           open
             ? "max-[820px]:visible max-[820px]:pointer-events-auto max-[820px]:translate-x-0"
             : "max-[820px]:invisible max-[820px]:pointer-events-none max-[820px]:-translate-x-[102%]",
-          hiddenDesktop ? "opacity-0 !p-0 !border-none max-[820px]:opacity-100 max-[820px]:!px-[22px]" : "",
+          hiddenDesktop ? "opacity-0 !p-0 !border-none max-[820px]:opacity-100" : "",
         ].join(" ")}
         aria-label="Chat sessions"
       >
-        <div className="flex items-center justify-between px-1.5 pb-6">
+        <div className="px-[22px]">
+          <div className="flex items-center justify-between px-1.5 pb-6">
           <a
             href="/"
             className="flex min-w-[200px] items-center gap-2.5 text-[1.15rem] font-bold tracking-[-0.04em] text-ink no-underline"
@@ -57,9 +58,10 @@ export function Sidebar({
         </button>
 
         <div className="px-2.5 pb-2.5 pt-7 text-[0.72rem] font-bold uppercase tracking-[0.12em] text-muted">
-          Recent
+            Recent
+          </div>
         </div>
-        <nav className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-[22px]" aria-live="polite">
           {sessions.map((session) => (
             <button
               key={session.id}
@@ -82,7 +84,7 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="border-t border-line pt-3">
+        <div className="border-t border-line pt-3 px-[22px]">
           <div className="flex min-w-[200px] items-center gap-2 px-2.5 py-1.5 pb-3 text-[0.8rem] whitespace-nowrap text-muted">
             <span
               className={[
