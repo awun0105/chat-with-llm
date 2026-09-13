@@ -37,6 +37,33 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const isDragging = useRef(false);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!isDragging.current) return;
+      let newWidth = e.clientX;
+      if (newWidth < 120) newWidth = 0; // snap to hide
+      if (newWidth > 600) newWidth = 600; // max width
+      setSidebarWidth(newWidth);
+    };
+    const onUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.body.style.pointerEvents = '';
+      }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptValue, setPromptValue] = useState(DEFAULT_PROMPT);
@@ -348,7 +375,10 @@ export default function App() {
   }
 
   return (
-    <div className="grid h-dvh min-h-0 grid-cols-[320px_minmax(0,1fr)] overflow-hidden max-[820px]:block">
+    <div 
+    className="grid h-dvh min-h-0 overflow-hidden max-[820px]:block"
+    style={{ gridTemplateColumns: window.innerWidth > 820 ? `${sidebarWidth}px minmax(0,1fr)` : undefined }}
+  >
       <Sidebar
         open={sidebarOpen}
         sessions={sessions}
@@ -358,13 +388,29 @@ export default function App() {
         onNewChat={createSession}
         onSelect={selectSession}
       />
-      <main className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgb(101_88_211_/_6%),transparent_36%),var(--color-paper)] max-[820px]:h-dvh">
+      <main className="relative grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgb(101_88_211_/_6%),transparent_36%),var(--color-paper)] max-[820px]:h-dvh">
+        <div 
+          className="absolute top-0 bottom-0 left-0 z-50 w-2 -ml-1 cursor-col-resize hover:bg-accent/40 max-[820px]:hidden transition-colors"
+          onPointerDown={(e) => {
+            isDragging.current = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            document.body.style.pointerEvents = 'none'; // prevents iframe/selection issues
+            e.preventDefault();
+          }}
+        />
         <header className="relative z-20 flex min-h-[72px] items-center gap-[18px] border-b border-line/85 bg-paper/87 px-8 backdrop-blur-[18px] max-[820px]:min-h-16 max-[820px]:gap-2.5 max-[820px]:px-4">
           <button
             type="button"
-            className="hidden size-[38px] place-items-center rounded-[10px] bg-transparent hover:bg-panel max-[820px]:grid"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open sidebar"
+            className="grid size-[38px] place-items-center rounded-[10px] bg-transparent hover:bg-panel transition-colors"
+            onClick={() => {
+              if (window.innerWidth <= 820) {
+                setSidebarOpen(true);
+              } else {
+                setSidebarWidth(sidebarWidth === 0 ? 320 : 0);
+              }
+            }}
+            aria-label="Toggle sidebar"
           >
             <IconMenu />
           </button>
