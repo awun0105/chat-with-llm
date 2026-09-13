@@ -26,6 +26,18 @@ export function Sidebar({
       >
         <div className="px-[22px]">
           <div className="flex items-center justify-between px-1.5 pb-6">
+            <a
+              href="/"
+              className="flex min-w-[150px] items-center gap-2.5 text-[1.15rem] font-bold tracking-[-0.04em] text-ink no-underline"
+              aria-label="Chat with LLM home"
+            >
+              <span className="flex h-[26px] w-[26px] shrink-0 items-end gap-0.5 rounded-lg bg-ink p-[5px]" aria-hidden="true">
+                <span className="h-2 w-1 rounded-sm bg-white" />
+                <span className="h-[15px] w-1 rounded-sm bg-white" />
+                <span className="h-[11px] w-1 rounded-sm bg-white" />
+              </span>
+              <span>ChatWithLLM</span>
+            </a>
             <button
               type="button"
               className="grid size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 transition-colors max-[820px]:hidden"
@@ -34,25 +46,24 @@ export function Sidebar({
             >
               <IconSidebarClose />
             </button>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="grid size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 transition-colors"
-                onClick={onNewChat}
-                aria-label="New chat"
-              >
-                <IconPen />
-              </button>
-              <button
-                type="button"
-                className="hidden size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 max-[820px]:grid transition-colors"
-                onClick={onClose}
-                aria-label="Close sidebar"
-              >
-                <IconClose />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="hidden size-[38px] place-items-center rounded-lg bg-transparent hover:bg-black/5 max-[820px]:grid transition-colors"
+              onClick={onClose}
+              aria-label="Close sidebar"
+            >
+              <IconClose />
+            </button>
           </div>
+          <button
+            type="button"
+            className="flex min-h-[52px] w-full min-w-[200px] shrink-0 cursor-pointer items-center gap-3 rounded-[14px] border border-line-strong bg-white/70 px-3.5 text-[0.95rem] font-semibold transition duration-160 hover:-translate-y-px hover:border-[#c7c8c1] hover:bg-white mb-2"
+            onClick={onNewChat}
+          >
+            <IconPen />
+            <span className="whitespace-nowrap">New conversation</span>
+            <kbd className="ml-auto shrink-0 font-mono text-[0.72rem] font-normal text-soft">⌘ K</kbd>
+          </button>
 
 
 
