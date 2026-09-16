@@ -13,6 +13,7 @@ class SessionCreate(BaseModel):
 class SessionUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=80)
     system_prompt: str | None = Field(default=None, max_length=8000)
+    pinned: bool | None = None
 
 
 class ModelUpdate(BaseModel):
@@ -25,3 +26,8 @@ class ChatRequest(BaseModel):
 
 class RetryRequest(BaseModel):
     message_id: int | None = None
+
+
+class AppSettingsUpdate(BaseModel):
+    default_system_prompt: str | None = Field(default=None, max_length=8000)
+    show_starter_prompts: bool | None = None

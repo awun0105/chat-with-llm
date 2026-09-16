@@ -31,11 +31,12 @@ export async function consumeSSE(response, handler) {
   }
 }
 
-export async function streamChat(url, body, handler) {
+export async function streamChat(url, body, handler, signal) {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));

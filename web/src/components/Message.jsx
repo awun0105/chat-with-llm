@@ -48,6 +48,7 @@ export function ChatMessage({ message, model, sending, onCopy, onRetry }) {
     if (message.metadata?.ttft_seconds !== undefined) {
       metrics.push(["FIRST", formatSeconds(message.metadata.ttft_seconds)]);
     }
+    if (message.metadata?.stopped) metrics.push(["STATUS", "STOPPED"]);
   } else if (!isUser && streaming && message.input_tokens !== undefined) {
     metrics.push(["IN", message.input_tokens]);
     if (message.estimateRange) metrics.push(["EST", message.estimateRange]);

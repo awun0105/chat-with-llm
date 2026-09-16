@@ -17,3 +17,4 @@ app/data/*.db-*
 # React comparison UI
 web/node_modules/
 web/dist/
+INTEGRATION_GUIDE.md

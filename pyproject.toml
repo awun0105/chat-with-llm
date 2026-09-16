@@ -1,0 +1,22 @@
+[project]
+name = "chat-with-llm"
+version = "0.3.0"
+description = "Local FastAPI and React chat app for NVIDIA NIM models"
+requires-python = ">=3.11"
+dependencies = [
+    "anyio>=4.4,<4.15",
+    "fastapi>=0.115,<0.116",
+    "openai>=1.40,<2",
+    "python-dotenv>=1.0,<2",
+    "tiktoken>=0.7,<1",
+    "uvicorn[standard]>=0.30,<0.31",
+]
+
+[dependency-groups]
+dev = [
+    "httpx==0.28.1",
+    "pytest>=8.0,<9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]

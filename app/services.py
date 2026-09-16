@@ -45,14 +45,49 @@ class ChatService:
             for model in self.catalog.values()
         ]
 
-    def list_sessions(self) -> list[ChatSession]:
-        return self.repository.list_sessions()
+    def list_sessions(self, user_id: str = "default") -> list[ChatSession]:
+        return self.repository.list_sessions(user_id)
 
-    def create_session(self, title: str, system_prompt: str) -> ChatSession:
+    def search_sessions(self, query: str, user_id: str = "default", 
+        limit: int = 20, offset: int = 0
+    ) -> tuple[list[ChatSession], int]:
+        return self.repository.search_sessions(query.strip(), user_id, limit, offset)
+
+    def get_settings(self) -> dict:
+        values = self.repository.get_settings()
+        return {
+            "default_system_prompt": values.get(
+                "default_system_prompt", self.default_system_prompt
+            ),
+            "show_starter_prompts": values.get("show_starter_prompts", "true") == "true",
+        }
+
+    def update_settings(
+        self,
+        *,
+        default_system_prompt: str | None = None,
+        show_starter_prompts: bool | None = None,
+    ) -> dict:
+        values = {}
+        if default_system_prompt is not None:
+            values["default_system_prompt"] = (
+                default_system_prompt.strip() or self.default_system_prompt
+            )
+        if show_starter_prompts is not None:
+            values["show_starter_prompts"] = (
+                "true" if show_starter_prompts else "false"
+            )
+        if values:
+            self.repository.update_settings(values)
+        return self.get_settings()
+
+    def create_session(self, title: str, system_prompt: str, user_id: str = "default") -> ChatSession:
         clean_title = title.strip() or "New conversation"
-        clean_prompt = system_prompt.strip() or self.default_system_prompt
+        clean_prompt = (
+            system_prompt.strip() or self.get_settings()["default_system_prompt"]
+        )
         return self.repository.create_session(
-            clean_title, clean_prompt, self.catalog.default_model_id
+            clean_title, clean_prompt, self.catalog.default_model_id, user_id
         )
 
     def get_session(self, session_id: str) -> ChatSession:
@@ -64,6 +99,7 @@ class ChatService:
         *,
         title: str | None = None,
         system_prompt: str | None = None,
+        pinned: bool | None = None,
     ) -> ChatSession:
         clean_title = None if title is None else (title.strip() or "New conversation")
         clean_prompt = (
@@ -72,11 +108,14 @@ class ChatService:
             else (system_prompt.strip() or self.default_system_prompt)
         )
         return self.repository.update_session(
-            session_id, title=clean_title, system_prompt=clean_prompt
+            session_id, title=clean_title, system_prompt=clean_prompt, pinned=pinned
         )
 
     def delete_session(self, session_id: str) -> None:
         self.repository.delete_session(session_id)
+
+    def clear_sessions(self, user_id: str = "default") -> int:
+        return self.repository.clear_sessions(user_id)
 
     def model_latency(self, model_id: str) -> tuple[float, float]:
         model = self.catalog[model_id]
@@ -167,6 +206,25 @@ class ChatService:
                         first_token_at = time.perf_counter()
                     chunks.append(text)
                     yield StreamEvent("token", {"text": text})
+            except GeneratorExit:
+                reply = "".join(chunks)
+                if reply:
+                    elapsed = time.perf_counter() - started
+                    ttft = (first_token_at - started) if first_token_at else elapsed
+                    self.repository.add_assistant_message(
+                        session_id=session.id,
+                        content=reply,
+                        model_id=model.id,
+                        input_tokens=input_tokens,
+                        output_tokens=self.tokens.count(reply, model.model),
+                        latency_seconds=elapsed,
+                        estimated_seconds=(estimate_low + estimate_high) / 2,
+                        metadata={
+                            "ttft_seconds": round(ttft, 3),
+                            "stopped": True,
+                        },
+                    )
+                raise
             except Exception as error:
                 yield StreamEvent("error", {"message": str(error)})
                 return

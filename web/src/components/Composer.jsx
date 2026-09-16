@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { IconChevron, IconInstructions, IconSend } from "./Icons.jsx";
+import { IconChevron, IconInstructions, IconSend, IconStop } from "./Icons.jsx";
 
 function modelInitial(model) {
   return model?.company?.slice(0, 1).toUpperCase() || "M";
@@ -14,6 +14,7 @@ export function Composer({
   menuOpen,
   setMenuOpen,
   onSend,
+  onStop,
   onSwitchModel,
   onOpenInstructions,
 }) {
@@ -58,7 +59,7 @@ export function Composer({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <div className="relative" data-model-menu>
               <button
-                className="flex max-w-[280px] min-w-0 cursor-pointer items-center gap-2 rounded-full border border-line bg-panel py-1.5 pr-2 pl-1.5 text-left hover:border-line-strong hover:bg-white max-[820px]:max-w-[180px]"
+                className="flex h-9 max-w-[280px] min-w-0 cursor-pointer items-center gap-2 rounded-full border border-line bg-panel pr-2 pl-1.5 text-left hover:border-line-strong hover:bg-white max-[820px]:max-w-[180px]"
                 type="button"
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
@@ -67,19 +68,14 @@ export function Composer({
                 onClick={() => setMenuOpen((open) => !open)}
               >
                 <span
-                  className="grid size-[26px] shrink-0 place-items-center rounded-full text-[0.72rem] font-bold text-white"
+                  className="grid size-6 shrink-0 place-items-center rounded-full text-[0.68rem] font-bold text-white"
                   style={{ background: activeModel?.color || "#151718" }}
                 >
                   {modelInitial(activeModel)}
                 </span>
-                <span className="flex min-w-0 flex-col">
-                  <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.82rem] font-bold">
-                    {activeModel?.label || "Loading…"}
-                  </strong>
-                  <small className="mt-px overflow-hidden text-ellipsis whitespace-nowrap text-[0.68rem] text-muted max-[820px]:hidden">
-                    {activeModel ? `${activeModel.company} · ${activeModel.tier}` : "Model"}
-                  </small>
-                </span>
+                <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.82rem] font-bold">
+                  {activeModel?.label || "Loading…"}
+                </strong>
                 <IconChevron className="ml-0.5 size-4 text-muted" />
               </button>
               {menuOpen && (
@@ -121,7 +117,7 @@ export function Composer({
               )}
             </div>
             <button
-              className="flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[0.82rem] font-semibold text-[#555958] hover:bg-panel"
+              className="flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-[0.82rem] font-semibold text-[#555958] hover:bg-panel"
               type="button"
               title="System instructions"
               onClick={onOpenInstructions}
@@ -140,11 +136,13 @@ export function Composer({
           </div>
           <button
             className="grid size-10 place-items-center rounded-xl bg-ink text-white transition duration-150 hover:enabled:-translate-y-px disabled:cursor-default disabled:opacity-20"
-            type="submit"
-            aria-label="Send message"
-            disabled={sending || !draft.trim()}
+            type={sending ? "button" : "submit"}
+            aria-label={sending ? "Stop generating" : "Send message"}
+            title={sending ? "Stop generating" : "Send message"}
+            disabled={!sending && !draft.trim()}
+            onClick={sending ? onStop : undefined}
           >
-            <IconSend className="size-[18px]" />
+            {sending ? <IconStop className="size-[18px]" /> : <IconSend className="size-[18px]" />}
           </button>
         </div>
       </form>
@@ -152,4 +150,3 @@ export function Composer({
     </footer>
   );
 }
-

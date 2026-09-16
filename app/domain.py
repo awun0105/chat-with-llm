@@ -52,6 +52,8 @@ class ChatSession:
     updated_at: float
     preview: str | None = None
     messages: list[ChatMessage] | None = None
+    pinned: bool = False
+    user_id: str = "default"
 
     @classmethod
     def from_mapping(cls, data: dict, messages: list[ChatMessage] | None = None) -> "ChatSession":
@@ -65,6 +67,8 @@ class ChatSession:
             updated_at=payload["updated_at"],
             preview=payload.get("preview"),
             messages=messages,
+            pinned=bool(payload.get("pinned", False)),
+            user_id=payload.get("user_id", "default"),
         )
 
     def to_dict(self) -> dict:
@@ -75,6 +79,8 @@ class ChatSession:
             "active_model": self.active_model,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "pinned": self.pinned,
+            "user_id": self.user_id,
         }
         if self.preview is not None:
             data["preview"] = self.preview

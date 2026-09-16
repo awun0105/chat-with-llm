@@ -32,7 +32,6 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         load_dotenv(PROJECT_DIR / ".env")
-        load_dotenv(APP_DIR / ".env")
 
         data_dir = Path(os.getenv("CHAT_DATA_DIR", APP_DIR / "data"))
         configured_catalog = Path(

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  chat-with-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chat-with-llm:latest
+    container_name: chat-with-llm
+    ports:
+      - "8765:8765"
+    volumes:
+      # Persist SQLite database and other data
+      - ./data:/app/app/data
+    env_file:
+      - .env
+    restart: unless-stopped

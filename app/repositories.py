@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 import uuid
@@ -8,6 +9,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Protocol
 
+from app.config import DEFAULT_SYSTEM_PROMPT
 from app.domain import ChatMessage, ChatSession
 
 
@@ -22,13 +24,19 @@ class SessionRepository(Protocol):
     def location(self) -> str: ...
 
     def initialize(self, model_ids: tuple[str, ...], default_model_id: str) -> None: ...
-    def list_sessions(self) -> list[ChatSession]: ...
+    def list_sessions(self, user_id: str = "default", ) -> list[ChatSession]: ...
+    def search_sessions(self, query: str, user_id: str = "default", 
+        limit: int = 20, offset: int = 0
+    ) -> tuple[list[ChatSession], int]: ...
     def get_session(self, session_id: str, *, include_messages: bool = False) -> ChatSession: ...
-    def create_session(self, title: str, system_prompt: str, model_id: str) -> ChatSession: ...
+    def create_session(self, title: str, system_prompt: str, model_id: str, user_id: str = "default") -> ChatSession: ...
     def update_session(
         self, session_id: str, *, title: str | None = None, system_prompt: str | None = None
     ) -> ChatSession: ...
     def delete_session(self, session_id: str) -> None: ...
+    def clear_sessions(self, user_id: str = "default") -> int: ...
+    def get_settings(self) -> dict[str, str]: ...
+    def update_settings(self, values: dict[str, str]) -> dict[str, str]: ...
     def recent_latencies(self, model_id: str, limit: int = 8) -> list[float]: ...
     def change_model(
         self, session_id: str, model_id: str, content: str, metadata: dict
@@ -89,7 +97,9 @@ class SQLiteSessionRepository:
                     system_prompt TEXT NOT NULL,
                     active_model TEXT NOT NULL,
                     created_at REAL NOT NULL,
-                    updated_at REAL NOT NULL
+                    updated_at REAL NOT NULL,
+                    pinned INTEGER NOT NULL DEFAULT 0,
+                    user_id TEXT NOT NULL DEFAULT 'default'
                 );
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,8 +116,66 @@ class SQLiteSessionRepository:
                 );
                 CREATE INDEX IF NOT EXISTS idx_messages_session
                 ON messages(session_id, id);
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                CREATE VIRTUAL TABLE IF NOT EXISTS sessions_fts
+                USING fts5(session_id UNINDEXED, title, tokenize='unicode61 remove_diacritics 2');
+                CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts
+                USING fts5(message_id UNINDEXED, session_id UNINDEXED, content,
+                           tokenize='unicode61 remove_diacritics 2');
+                CREATE TRIGGER IF NOT EXISTS sessions_fts_insert AFTER INSERT ON sessions BEGIN
+                    INSERT INTO sessions_fts(session_id, title) VALUES (new.id, new.title);
+                END;
+                CREATE TRIGGER IF NOT EXISTS sessions_fts_update AFTER UPDATE OF title ON sessions BEGIN
+                    DELETE FROM sessions_fts WHERE session_id = old.id;
+                    INSERT INTO sessions_fts(session_id, title) VALUES (new.id, new.title);
+                END;
+                CREATE TRIGGER IF NOT EXISTS sessions_fts_delete AFTER DELETE ON sessions BEGIN
+                    DELETE FROM sessions_fts WHERE session_id = old.id;
+                END;
+                CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages
+                WHEN new.role IN ('user', 'assistant') BEGIN
+                    INSERT INTO messages_fts(message_id, session_id, content)
+                    VALUES (new.id, new.session_id, new.content);
+                END;
+                CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages
+                WHEN old.role IN ('user', 'assistant') BEGIN
+                    DELETE FROM messages_fts WHERE message_id = old.id;
+                END;
                 """
             )
+            # Add pinned column to existing DBs
+            try:
+                db.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'")
+            except sqlite3.OperationalError:
+                pass
+            
+            try:
+                db.execute("ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+            db.execute(
+                "INSERT OR IGNORE INTO app_settings(key, value) VALUES (?, ?)",
+                ("default_system_prompt", DEFAULT_SYSTEM_PROMPT),
+            )
+            db.execute(
+                "INSERT OR IGNORE INTO app_settings(key, value) VALUES (?, ?)",
+                ("show_starter_prompts", "true"),
+            )
+            if db.execute("SELECT COUNT(*) FROM sessions_fts").fetchone()[0] == 0:
+                db.execute(
+                    "INSERT INTO sessions_fts(session_id, title) SELECT id, title FROM sessions"
+                )
+            if db.execute("SELECT COUNT(*) FROM messages_fts").fetchone()[0] == 0:
+                db.execute(
+                    """
+                    INSERT INTO messages_fts(message_id, session_id, content)
+                    SELECT id, session_id, content FROM messages
+                    WHERE role IN ('user', 'assistant')
+                    """
+                )
             placeholders = ", ".join("?" for _ in model_ids)
             db.execute(
                 f"UPDATE sessions SET active_model = ? "
@@ -115,7 +183,7 @@ class SQLiteSessionRepository:
                 (default_model_id, *model_ids),
             )
 
-    def list_sessions(self) -> list[ChatSession]:
+    def list_sessions(self, user_id: str = "default") -> list[ChatSession]:
         with self._connect() as db:
             rows = db.execute(
                 """
@@ -123,10 +191,85 @@ class SQLiteSessionRepository:
                        (SELECT content FROM messages m WHERE m.session_id = s.id
                         AND m.role IN ('user', 'assistant')
                         ORDER BY m.id DESC LIMIT 1) AS preview
-                FROM sessions s ORDER BY s.updated_at DESC
-                """
+                FROM sessions s 
+                WHERE s.user_id = ?
+                ORDER BY s.pinned DESC, s.updated_at DESC
+                """,
+                (user_id,)
             ).fetchall()
         return [self._session(row) for row in rows]
+
+    @staticmethod
+    def _fts_query(query: str) -> str:
+        tokens = re.findall(r"\w+", query, flags=re.UNICODE)
+        return " AND ".join(
+            f'"{token.replace(chr(34), chr(34) * 2)}"*' for token in tokens
+        )
+
+    def search_sessions(self, query: str, user_id: str = "default", 
+        limit: int = 20, offset: int = 0
+    ) -> tuple[list[ChatSession], int]:
+        match_query = self._fts_query(query)
+        if not match_query:
+            return [], 0
+        with self._connect() as db:
+            session_rows = db.execute(
+                """
+                WITH hits AS (
+                    SELECT session_id FROM sessions_fts WHERE sessions_fts MATCH ?
+                    UNION
+                    SELECT session_id FROM messages_fts WHERE messages_fts MATCH ?
+                )
+                SELECT s.* FROM sessions s
+                JOIN hits ON hits.session_id = s.id
+                WHERE s.user_id = ?
+                ORDER BY s.pinned DESC, s.updated_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (match_query, match_query, user_id, limit, offset),
+            ).fetchall()
+            total = db.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT session_id FROM sessions_fts WHERE sessions_fts MATCH ?
+                    UNION
+                    SELECT session_id FROM messages_fts WHERE messages_fts MATCH ?
+                ) hits
+                JOIN sessions s ON s.id = hits.session_id
+                WHERE s.user_id = ?
+                """,
+                (match_query, match_query, user_id),
+            ).fetchone()[0]
+            session_ids = [row["id"] for row in session_rows]
+            if not session_ids:
+                return [], int(total)
+            placeholders = ", ".join("?" for _ in session_ids)
+            message_rows = db.execute(
+                f"""
+                SELECT session_id, content FROM messages
+                WHERE role IN ('user', 'assistant')
+                  AND session_id IN ({placeholders})
+                ORDER BY id
+                """,
+                session_ids,
+            ).fetchall()
+
+        messages_by_session: dict[str, list[str]] = {}
+        for message in message_rows:
+            messages_by_session.setdefault(message["session_id"], []).append(message["content"])
+
+        needle = query.casefold()
+        matches = []
+        for row in session_rows:
+            messages = messages_by_session.get(row["id"], [])
+            matching_message = next(
+                (content for content in reversed(messages) if needle in content.casefold()),
+                None,
+            )
+            values = dict(row)
+            values["preview"] = matching_message or (messages[-1] if messages else None)
+            matches.append(self._session(values))
+        return matches, int(total)
 
     def get_session(self, session_id: str, *, include_messages: bool = False) -> ChatSession:
         with self._connect() as db:
@@ -144,13 +287,13 @@ class SQLiteSessionRepository:
                 messages = [self._message(message) for message in message_rows]
         return self._session(row, messages=messages)
 
-    def create_session(self, title: str, system_prompt: str, model_id: str) -> ChatSession:
+    def create_session(self, title: str, system_prompt: str, model_id: str, user_id: str = "default") -> ChatSession:
         now = time.time()
         session_id = uuid.uuid4().hex
         with self._connect() as db:
             db.execute(
-                "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
-                (session_id, title, system_prompt, model_id, now, now),
+                "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (session_id, title, system_prompt, model_id, now, now, 0, user_id),
             )
         return self.get_session(session_id)
 
@@ -160,15 +303,17 @@ class SQLiteSessionRepository:
         *,
         title: str | None = None,
         system_prompt: str | None = None,
+        pinned: bool | None = None,
     ) -> ChatSession:
         session = self.get_session(session_id)
         next_title = session.title if title is None else title
         next_prompt = session.system_prompt if system_prompt is None else system_prompt
+        next_pinned = int(session.pinned if pinned is None else pinned)
         with self._connect() as db:
             db.execute(
-                "UPDATE sessions SET title = ?, system_prompt = ?, updated_at = ? "
+                "UPDATE sessions SET title = ?, system_prompt = ?, pinned = ?, updated_at = ? "
                 "WHERE id = ?",
-                (next_title, next_prompt, time.time(), session_id),
+                (next_title, next_prompt, next_pinned, time.time(), session_id),
             )
         return self.get_session(session_id)
 
@@ -176,6 +321,28 @@ class SQLiteSessionRepository:
         self.get_session(session_id)
         with self._connect() as db:
             db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+
+    def clear_sessions(self, user_id: str = "default") -> int:
+        with self._connect() as db:
+            count = db.execute("SELECT COUNT(*) FROM sessions WHERE user_id = ?", (user_id,)).fetchone()[0]
+            db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        return int(count)
+
+    def get_settings(self) -> dict[str, str]:
+        with self._connect() as db:
+            rows = db.execute("SELECT key, value FROM app_settings").fetchall()
+        return {row["key"]: row["value"] for row in rows}
+
+    def update_settings(self, values: dict[str, str]) -> dict[str, str]:
+        with self._connect() as db:
+            db.executemany(
+                """
+                INSERT INTO app_settings(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                values.items(),
+            )
+        return self.get_settings()
 
     def recent_latencies(self, model_id: str, limit: int = 8) -> list[float]:
         with self._connect() as db:
@@ -350,6 +517,10 @@ class InMemorySessionRepository:
         self._messages: dict[str, list[ChatMessage]] = {}
         self._next_id = 1
         self._default_model_id = ""
+        self._settings = {
+            "default_system_prompt": DEFAULT_SYSTEM_PROMPT,
+            "show_starter_prompts": "true",
+        }
 
     @property
     def location(self) -> str:
@@ -361,8 +532,9 @@ class InMemorySessionRepository:
             if session.active_model not in model_ids:
                 session.active_model = default_model_id
 
-    def list_sessions(self) -> list[ChatSession]:
-        sessions = sorted(self._sessions.values(), key=lambda item: item.updated_at, reverse=True)
+    def list_sessions(self, user_id: str = "default") -> list[ChatSession]:
+        sessions = [s for s in self._sessions.values() if s.user_id == user_id]
+        sessions = sorted(sessions, key=lambda item: (item.pinned, item.updated_at), reverse=True)
         result = []
         for session in sessions:
             preview = next(
@@ -382,26 +554,44 @@ class InMemorySessionRepository:
                     created_at=session.created_at,
                     updated_at=session.updated_at,
                     preview=preview,
+                    pinned=session.pinned,
+                    user_id=session.user_id,
                 )
             )
         return result
 
-    def get_session(self, session_id: str, *, include_messages: bool = False) -> ChatSession:
-        session = self._sessions.get(session_id)
-        if session is None:
-            raise SessionNotFoundError(session_id)
-        messages = deepcopy(self._messages.get(session_id, [])) if include_messages else None
-        return ChatSession(
-            id=session.id,
-            title=session.title,
-            system_prompt=session.system_prompt,
-            active_model=session.active_model,
-            created_at=session.created_at,
-            updated_at=session.updated_at,
-            messages=messages,
-        )
+    def search_sessions(self, query: str, user_id: str = "default", 
+        limit: int = 20, offset: int = 0
+    ) -> tuple[list[ChatSession], int]:
+        needle = query.casefold()
+        matches = []
+        for session in self.list_sessions(user_id):
+            messages = self._messages.get(session.id, [])
+            matching_message = next(
+                (
+                    message.content
+                    for message in reversed(messages)
+                    if message.role in {"user", "assistant"}
+                    and needle in message.content.casefold()
+                ),
+                None,
+            )
+            if needle not in session.title.casefold() and matching_message is None:
+                continue
+            if matching_message is not None:
+                session.preview = matching_message
+            matches.append(session)
+        return matches[offset : offset + limit], len(matches)
 
-    def create_session(self, title: str, system_prompt: str, model_id: str) -> ChatSession:
+    def get_session(self, session_id: str, *, include_messages: bool = False) -> ChatSession:
+        if session_id not in self._sessions:
+            raise SessionNotFoundError(session_id)
+        session = self._sessions[session_id]
+        if include_messages:
+            session.messages = list(self._messages.get(session_id, []))
+        return session
+
+    def create_session(self, title: str, system_prompt: str, model_id: str, user_id: str = "default") -> ChatSession:
         now = time.time()
         session = ChatSession(
             id=uuid.uuid4().hex,
@@ -410,29 +600,39 @@ class InMemorySessionRepository:
             active_model=model_id,
             created_at=now,
             updated_at=now,
+            user_id=user_id,
         )
         self._sessions[session.id] = session
         self._messages[session.id] = []
-        return self.get_session(session.id)
+        return session
 
     def update_session(
-        self,
-        session_id: str,
-        *,
-        title: str | None = None,
-        system_prompt: str | None = None,
+        self, session_id: str, *, title: str | None = None, system_prompt: str | None = None, pinned: bool | None = None
     ) -> ChatSession:
-        session = self.get_session(session_id)
-        stored = self._sessions[session_id]
+        stored = self.get_session(session_id)
         stored.title = stored.title if title is None else title
         stored.system_prompt = stored.system_prompt if system_prompt is None else system_prompt
+        stored.pinned = stored.pinned if pinned is None else pinned
         stored.updated_at = time.time()
-        return self.get_session(session_id)
+        return stored
 
     def delete_session(self, session_id: str) -> None:
         self.get_session(session_id)
         self._sessions.pop(session_id, None)
         self._messages.pop(session_id, None)
+
+    def clear_sessions(self, user_id: str = "default") -> int:
+        count = len(self._sessions)
+        self._sessions.clear()
+        self._messages.clear()
+        return count
+
+    def get_settings(self) -> dict[str, str]:
+        return dict(self._settings)
+
+    def update_settings(self, values: dict[str, str]) -> dict[str, str]:
+        self._settings.update(values)
+        return self.get_settings()
 
     def recent_latencies(self, model_id: str, limit: int = 8) -> list[float]:
         values = []

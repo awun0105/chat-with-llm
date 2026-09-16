@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import create_chat_router, register_exception_handlers
@@ -65,6 +65,14 @@ def _store_backend(application: FastAPI, backend: ChatBackend) -> None:
     application.state.settings = backend.settings
 
 
+def _require_ui_build(static_dir: Path) -> None:
+    if not (Path(static_dir) / "index.html").is_file():
+        raise RuntimeError(
+            "React UI build not found. Run `cd web && npm ci && "
+            "npm run build:fastapi` before starting or mounting the chat UI."
+        )
+
+
 def create_app(
     *,
     settings: Settings | None = None,
@@ -84,6 +92,8 @@ def create_app(
         providers=providers,
         tokens=tokens,
     )
+    if include_ui:
+        _require_ui_build(backend.settings.static_dir)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -129,6 +139,8 @@ def attach_chat(
     """
 
     backend = build_backend(**backend_kwargs)
+    if include_ui:
+        _require_ui_build(backend.settings.static_dir)
     backend.service.initialize()
     _store_backend(host, backend)
     register_exception_handlers(host)

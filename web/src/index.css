@@ -133,12 +133,12 @@ body,
   border-radius: 10px;
 }
 
-.user-bubble .markdown-body a { color: #c9c3ff; }
-.user-bubble .markdown-body code {
+.user-bubble a { color: #c9c3ff; }
+.user-bubble code {
   background: rgb(255 255 255 / 12%);
   color: #fff;
 }
-.user-bubble .markdown-body pre {
+.user-bubble pre {
   background: rgb(255 255 255 / 8%);
   border-color: rgb(255 255 255 / 12%);
 }
